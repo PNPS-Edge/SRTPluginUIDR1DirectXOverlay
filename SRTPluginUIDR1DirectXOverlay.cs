@@ -2,7 +2,6 @@
 using GameOverlay.Windows;
 using SRTPluginBase;
 using SRTPluginProviderDR1;
-using SRTPluginProviderDR1.Structs;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,6 +40,8 @@ namespace SRTPluginUIRE2DirectXOverlay
         private SolidBrush _greydarker;
         private SolidBrush _darkgreen;
         private SolidBrush _darkyellow;
+
+        private bool isGraphics;
 
 
         public PluginConfiguration config;
@@ -91,6 +92,8 @@ namespace SRTPluginUIRE2DirectXOverlay
                 Height = _window.Height,
                 WindowHandle = _window.Handle
             };
+
+            isGraphics = _graphics != null;
             _graphics?.Setup();
 
             // Get a refernence to the underlying RenderTarget from SharpDX. This'll be used to draw portions of images.
@@ -187,6 +190,7 @@ namespace SRTPluginUIRE2DirectXOverlay
             float statsYOffset = baseYOffset + 0f;
 
             var Percent = gameMemory.PlayerCurrentHealth / gameMemory.PlayerMaxHealth;
+
             if (config.ShowHPBars)
             {
                 DrawHealthBar(ref statsXOffset, ref statsYOffset, gameMemory.PlayerCurrentHealth, gameMemory.PlayerMaxHealth, Percent);
@@ -196,99 +200,7 @@ namespace SRTPluginUIRE2DirectXOverlay
                 SolidBrush TextColor = (gameMemory.PlayerCurrentHealth > 600) ? _lightgreen : (gameMemory.PlayerCurrentHealth > 300) ? _lightyellow : (gameMemory.PlayerCurrentHealth > 0) ? _lightred : _white;
                 string perc = float.IsNaN(Percent) ? "0%" : string.Format("{0:P1}", Percent);
                 _graphics?.DrawText(_consolasBold, 20f, _red, statsXOffset, statsYOffset += 24, "Player HP");
-                string playerName = gameMemory.PlayerStatus.IsEthan ? "Ethan: " : gameMemory.PlayerStatus.IsChris ? "Chris: " : "";
-                _graphics?.DrawText(_consolasBold, 20f, TextColor, statsXOffset + 10f, statsYOffset += 24, string.Format("{0}{1} / {2} {3:P1}", playerName, gameMemory.PlayerCurrentHealth, gameMemory.PlayerMaxHealth, perc));
             }
-
-            float textOffsetX = 0f;
-            // Position Stats
-            if (config.ShowPlayerPosition)
-            {
-                _graphics?.DrawText(_consolasBold, 20f, _grey, config.PositionX + 15f, statsYOffset += 24, config.StringPositionX);
-                textOffsetX = config.PositionX + 15f + GetStringSize(config.StringPositionX) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, gameMemory.PlayerPositionX.ToString("F3"));
-                textOffsetX += GetStringSize(gameMemory.PlayerPositionX.ToString("F3")) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _grey, textOffsetX, statsYOffset, config.StringPositionY);
-                textOffsetX += GetStringSize(config.StringPositionY) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, gameMemory.PlayerPositionY.ToString("F3"));
-                textOffsetX += GetStringSize(gameMemory.PlayerPositionY.ToString("F3")) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _grey, textOffsetX, statsYOffset, config.StringPositionZ);
-                textOffsetX += GetStringSize(config.StringPositionZ) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, gameMemory.PlayerPositionZ.ToString("F3"));
-            }
-
-            // DA Stats
-            if (config.ShowDifficultyAdjustment)
-            {
-                _graphics?.DrawText(_consolasBold, 20f, _grey, config.PositionX + 15f, statsYOffset += 24, config.ScoreString);
-                textOffsetX = config.PositionX + 15f + GetStringSize(config.ScoreString) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, gameMemory.RankScore.ToString()); //110f
-                textOffsetX += GetStringSize(gameMemory.RankScore.ToString()) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _grey, textOffsetX, statsYOffset, config.RankString); //178f
-                textOffsetX += GetStringSize(config.RankString) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, gameMemory.Rank.ToString()); //261f
-                textOffsetX += GetStringSize(gameMemory.Rank.ToString()) + 10f;
-            }
-            if (config.ShowLeiCount)
-            {
-                if (!config.ShowDifficultyAdjustment)
-                {
-                    textOffsetX = config.PositionX + 15f;
-                    _graphics?.DrawText(_consolasBold, 20f, _grey, textOffsetX, statsYOffset += 24, config.LeiString);
-                }
-                else
-                {
-                    _graphics?.DrawText(_consolasBold, 20f, _grey, textOffsetX, statsYOffset, config.LeiString);
-                }
-
-                textOffsetX += GetStringSize(config.LeiString) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, gameMemory.Lei.ToString()); //57f
-            }
-
-            // EventActiomTask
-            if (config.ShowCurrentEvent)
-            {
-                _graphics?.DrawText(_consolasBold, 20f, _grey, config.PositionX + 15f, statsYOffset += 24, config.EventString);
-                var eventName = gameMemory.CurrentEvent;
-                textOffsetX = config.PositionX + 15f + GetStringSize(config.EventString) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, eventName); //153f
-            }
-
-            if (config.Debug)
-            {
-                var title = "Event Type: ";
-                var objValue = (EventType)gameMemory.EventType;
-                _graphics?.DrawText(_consolasBold, 20f, _grey, config.PositionX + 15f, statsYOffset += 24, title);
-                textOffsetX = config.PositionX + 15f + GetStringSize(title) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, objValue.ToString()); //153f
-
-                var title2 = "Is Cutscene: ";
-                var objValue2 = gameMemory.IsMotionPlay == 1 ? "True" : "False";
-                _graphics?.DrawText(_consolasBold, 20f, _grey, config.PositionX + 15f, statsYOffset += 24, title2);
-                textOffsetX = config.PositionX + 15f + GetStringSize(title2) + 10f;
-                _graphics?.DrawText(_consolasBold, 20f, _lawngreen, textOffsetX, statsYOffset, objValue2); //153f
-            }
-
-            // Enemy HP
-            var xOffset = config.EnemyHPPositionX == -1 ? statsXOffset : config.EnemyHPPositionX;
-            var yOffset = config.EnemyHPPositionY == -1 ? statsYOffset : config.EnemyHPPositionY;
-            _graphics?.DrawText(_consolasBold, 20f, _red, xOffset, yOffset += 24f, config.EnemyString);
-            foreach (EnemyHP enemyHP in gameMemory.EnemyHealth.Where(a => a.IsAlive).OrderBy(a => a.IsTrigger).ThenBy(a => a.Percentage).ThenByDescending(a => a.CurrentHP))
-                if (config.ShowHPBars)
-                {
-                    DrawProgressBar(ref xOffset, ref yOffset, enemyHP.CurrentHP, enemyHP.MaximumHP, enemyHP.Percentage);
-                }
-                else
-                {
-                    if (Bosses.ContainsKey(enemyHP.MaximumHP))
-                    {
-                        _graphics.DrawText(_consolasBold, 20f, _white, xOffset + 10f, yOffset += 28f, string.Format("{0}: {1} / {2} {3:P1}", Bosses[enemyHP.MaximumHP].ToUpper(), enemyHP.CurrentHP, enemyHP.MaximumHP, enemyHP.Percentage));
-                    }
-                    else if (!config.ShowBossesOnly)
-                    {
-                        _graphics.DrawText(_consolasBold, 20f, _white, xOffset + 10f, yOffset += 28f, string.Format("{0} / {1} {2:P1}", enemyHP.CurrentHP, enemyHP.MaximumHP, enemyHP.Percentage));
-                    }
-                }
         }
 
         private float GetStringSize(string str, float size = 20f)
@@ -317,22 +229,25 @@ namespace SRTPluginUIRE2DirectXOverlay
                 _graphics.DrawText(_consolasBold, 20f, _white, xOffset + 10f, yOffset - 2f, string.Format("{0} / {1}", chealth, mhealth));
                 _graphics.DrawText(_consolasBold, 20f, _white, endOfBar, yOffset - 2f, perc);
             }
-
         }
 
         private void DrawHealthBar(ref float xOffset, ref float yOffset, float chealth, float mhealth, float percentage = 1f)
         {
             SolidBrush HPBarColor = (chealth > 600) ? _darkgreen : (chealth > 300) ? _darkyellow : (chealth > 0) ? _darkred : _greydarker;
             SolidBrush TextColor = (chealth > 600) ? _lightgreen : (chealth > 300) ? _lightyellow : (chealth > 0) ? _lightred : _white;
-            _graphics.DrawRectangle(_greydark, xOffset, yOffset += 28f, xOffset + 420f, yOffset + 22f, 4f);
-            _graphics.FillRectangle(_greydarker, xOffset + 1f, yOffset + 1f, xOffset + 418f, yOffset + 20f);
-            _graphics.FillRectangle(HPBarColor, xOffset + 1f, yOffset + 1f, xOffset + (418f * percentage), yOffset + 20f);
-            string playerName = gameMemory.PlayerStatus.IsEthan ? "Ethan: " : gameMemory.PlayerStatus.IsChris ? "Chris: " : "";
-            _graphics.DrawText(_consolasBold, 20f, TextColor, xOffset + 10f, yOffset - 2f, string.Format("{0}{1} / {2}", playerName, chealth, mhealth));
-            string perc = float.IsNaN(percentage) ? "0%" : string.Format("{0:P1}", percentage);
-            //float endOfBar = 420f - (perc.Length * 12);
-            float endOfBar = config.PositionX + 420f - GetStringSize(perc);
-            _graphics.DrawText(_consolasBold, 20f, TextColor, endOfBar, yOffset - 2f, perc);
+
+            if (isGraphics)
+            {
+                _graphics.DrawRectangle(_greydark, xOffset, yOffset += 28f, xOffset + 420f, yOffset + 22f, 4f);
+                _graphics.FillRectangle(_greydarker, xOffset + 1f, yOffset + 1f, xOffset + 418f, yOffset + 20f);
+                _graphics.FillRectangle(HPBarColor, xOffset + 1f, yOffset + 1f, xOffset + (418f * percentage), yOffset + 20f);
+                string perc = float.IsNaN(percentage) ? "0%" : string.Format("{0:P1}", percentage);
+                //float endOfBar = 420f - (perc.Length * 12);
+                float endOfBar = config.PositionX + 420f - GetStringSize(perc);
+                _graphics.DrawText(_consolasBold, 20f, TextColor, endOfBar, yOffset - 2f, perc);
+            }
+
+
         }
 
         public enum EventType : int
