@@ -9,13 +9,18 @@ using System.Dynamic;
 using System.Linq;
 using System.Runtime.InteropServices;
 
-namespace SRTPluginUIRE2DirectXOverlay
+namespace SRTPluginUIDR1DirectXOverlay
 {
-    public class SRTPluginUIRE2DirectXOverlay : PluginBase, IPluginUI
+    public class SRTPluginUIDR1DirectXOverlay : PluginBase, IPluginUI
     {
         internal static PluginInfo _Info = new PluginInfo();
-        public override IPluginInfo Info => _Info;
+
         public string RequiredProvider => "SRTPluginProviderDR1";
+        private Process GetProcess() => Process.GetProcessesByName("deadrising")?.FirstOrDefault();
+        private Process gameProcess;
+        private IntPtr gameWindowHandle;
+
+        public override IPluginInfo Info => _Info;
         private IPluginHostDelegates hostDelegates;
         private IGameMemoryDR1 gameMemory;
 
@@ -25,7 +30,14 @@ namespace SRTPluginUIRE2DirectXOverlay
         private SharpDX.Direct2D1.WindowRenderTarget _device;
 
         private Font _consolasBold;
+        private float _fontSize = 22f;
+        private float _textXOffset = 22f;
+        private float _text1YOffset = 5f;
+        private float _textYOffset = 28f;
+        private float _elementSize = 320f;
 
+        private SolidBrush _darkblue;
+        private SolidBrush _darkerblue;
         private SolidBrush _black;
         private SolidBrush _white;
         private SolidBrush _grey;
@@ -41,25 +53,15 @@ namespace SRTPluginUIRE2DirectXOverlay
         private SolidBrush _darkgreen;
         private SolidBrush _darkyellow;
 
-        private bool isGraphics;
-
-
         public PluginConfiguration config;
-        private Process GetProcess() => Process.GetProcessesByName("re8")?.FirstOrDefault();
-        private Process gameProcess;
-        private IntPtr gameWindowHandle;
 
-        private Dictionary<float, string> Bosses = new Dictionary<float, string>() {
-            { 2900f, "Bella"},
-            { 3400f, "Cassandra"},
-            { 3700f, "Daniella"},
-            { 9000f, "Lady D"},
-            { 15000f, "Sturm"},
-            { 25000f, "Urias"},
-            { 26000f, "Moreau"},
-            { 30000f, "Miranda"},
-            { 100000f, "Heisenberg"},
-        };
+        private float _previousXCoordinates;
+        private float _previousYCoordinates;
+        private float _previousZCoordinates;
+
+        private List<double> _previousSpeedValues;
+
+        #region Methods
 
         [STAThread]
         public override int Startup(IPluginHostDelegates hostDelegates)
@@ -93,28 +95,73 @@ namespace SRTPluginUIRE2DirectXOverlay
                 WindowHandle = _window.Handle
             };
 
-            isGraphics = _graphics != null;
-            _graphics?.Setup();
+            _graphics.Setup();
 
             // Get a refernence to the underlying RenderTarget from SharpDX. This'll be used to draw portions of images.
             _device = (SharpDX.Direct2D1.WindowRenderTarget)typeof(Graphics).GetField("_device", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(_graphics);
 
             _consolasBold = _graphics?.CreateFont(config.StringFontName, 12, true);
 
-            _black = _graphics?.CreateSolidBrush(0, 0, 0);
-            _white = _graphics?.CreateSolidBrush(255, 255, 255);
-            _grey = _graphics?.CreateSolidBrush(128, 128, 128);
-            _greydark = _graphics?.CreateSolidBrush(64, 64, 64);
-            _greydarker = _graphics?.CreateSolidBrush(24, 24, 24);
+            // Variant Gradient
+            // Light
+            _lightred = _graphics?.CreateSolidBrush(255, 183, 183, 255);
+            _lightyellow = _graphics?.CreateSolidBrush(255, 255, 0, 255);
+            _lightgreen = _graphics?.CreateSolidBrush(0, 255, 0, 255);
+
+            // Dark
             _darkred = _graphics?.CreateSolidBrush(153, 0, 0, 100);
             _darkgreen = _graphics?.CreateSolidBrush(0, 102, 0, 100);
             _darkyellow = _graphics?.CreateSolidBrush(218, 165, 32, 100);
-            _red = _graphics?.CreateSolidBrush(255, 0, 0);
-            _lightred = _graphics?.CreateSolidBrush(255, 183, 183);
-            _lightyellow = _graphics?.CreateSolidBrush(255, 255, 0);
-            _lightgreen = _graphics?.CreateSolidBrush(0, 255, 0);
-            _lawngreen = _graphics?.CreateSolidBrush(124, 252, 0);
-            _goldenrod = _graphics?.CreateSolidBrush(218, 165, 32);
+
+            // Dead Rising blues
+            _darkblue = _graphics?.CreateSolidBrush(0, 12, 64, 140);
+            _darkerblue = _graphics?.CreateSolidBrush(0, 0, 48, 140);
+
+
+            _black = _graphics?.CreateSolidBrush(0, 0, 0, 140);
+            _white = _graphics?.CreateSolidBrush(255, 255, 255, 255);
+            _grey = _graphics?.CreateSolidBrush(128, 128, 128, 140);
+            _greydark = _graphics?.CreateSolidBrush(64, 64, 64, 140);
+            _greydarker = _graphics?.CreateSolidBrush(24, 24, 24, 140);
+
+            _red = _graphics?.CreateSolidBrush(255, 0, 0, 140);
+
+            _lawngreen = _graphics?.CreateSolidBrush(124, 252, 0, 140);
+            _goldenrod = _graphics?.CreateSolidBrush(218, 165, 32, 140);
+
+            _previousSpeedValues = new List<double>();
+
+            return 0;
+        }
+
+        public int ReceiveData(object gameMemory)
+        {
+            this.gameMemory = (IGameMemoryDR1)gameMemory;
+            _window?.PlaceAbove(gameWindowHandle);
+            _window?.FitTo(gameWindowHandle, true);
+
+            try
+            {
+                _graphics.BeginScene();
+                _graphics.ClearScene();
+
+                if (config.ScalingFactor != 1f)
+                    _device.Transform = new SharpDX.Mathematics.Interop.RawMatrix3x2(config.ScalingFactor, 0f, 0f, config.ScalingFactor, 0f, 0f);
+
+                if (_graphics != null && this.gameMemory.IsGamePaused == false && this.gameMemory.GameMenu == 3)
+                    DrawOverlay();
+
+                if (config.ScalingFactor != 1f)
+                    _device.Transform = new SharpDX.Mathematics.Interop.RawMatrix3x2(1f, 0f, 0f, 1f, 0f, 0f);
+            }
+            catch (Exception ex)
+            {
+                hostDelegates.ExceptionMessage.Invoke(ex);
+            }
+            finally
+            {
+                _graphics?.EndScene();
+            }
 
             return 0;
         }
@@ -122,6 +169,9 @@ namespace SRTPluginUIRE2DirectXOverlay
         public override int Shutdown()
         {
             SaveConfiguration(config);
+
+            _darkblue?.Dispose();
+            _darkerblue?.Dispose();
 
             _black?.Dispose();
             _white?.Dispose();
@@ -152,55 +202,205 @@ namespace SRTPluginUIRE2DirectXOverlay
             return 0;
         }
 
-        public int ReceiveData(object gameMemory)
-        {
-            this.gameMemory = (IGameMemoryDR1)gameMemory;
-            _window?.PlaceAbove(gameWindowHandle);
-            _window?.FitTo(gameWindowHandle, true);
+        #endregion Methods
 
-            try
-            {
-                _graphics?.BeginScene();
-                _graphics?.ClearScene();
-                if (config.ScalingFactor != 1f)
-                    _device.Transform = new SharpDX.Mathematics.Interop.RawMatrix3x2(config.ScalingFactor, 0f, 0f, config.ScalingFactor, 0f, 0f);
-                DrawOverlay();
-                if (config.ScalingFactor != 1f)
-                    _device.Transform = new SharpDX.Mathematics.Interop.RawMatrix3x2(1f, 0f, 0f, 1f, 0f, 0f);
-            }
-            catch (Exception ex)
-            {
-                hostDelegates.ExceptionMessage.Invoke(ex);
-            }
-            finally
-            {
-                _graphics?.EndScene();
-            }
-
-            return 0;
-        }
+        #region Functions
 
         private void DrawOverlay()
         {
             float baseXOffset = config.PositionX;
             float baseYOffset = config.PositionY;
+            _elementSize = config.ElementWidth;
 
             // Player HP
-            float statsXOffset = baseXOffset + 5f;
-            float statsYOffset = baseYOffset + 0f;
+            float statsXOffset;
 
-            var Percent = gameMemory.PlayerCurrentHealth / gameMemory.PlayerMaxHealth;
-
-            if (config.ShowHPBars)
+            if (config.DockRight)
             {
-                DrawHealthBar(ref statsXOffset, ref statsYOffset, gameMemory.PlayerCurrentHealth, gameMemory.PlayerMaxHealth, Percent);
+                statsXOffset = _graphics.Width - baseXOffset - _elementSize;
             }
             else
             {
-                SolidBrush TextColor = (gameMemory.PlayerCurrentHealth > 600) ? _lightgreen : (gameMemory.PlayerCurrentHealth > 300) ? _lightyellow : (gameMemory.PlayerCurrentHealth > 0) ? _lightred : _white;
-                string perc = float.IsNaN(Percent) ? "0%" : string.Format("{0:P1}", Percent);
-                _graphics?.DrawText(_consolasBold, 20f, _red, statsXOffset, statsYOffset += 24, "Player HP");
+                statsXOffset = baseXOffset + 5f;
             }
+
+            float statsYOffset = baseYOffset + 0f;
+
+            if (config.ShowCampainInfo)
+            {
+                DrawCampainInfo(ref statsXOffset, ref statsYOffset, gameMemory.GameTime);
+            }
+
+            if (config.ShowCoordinatesInfo)
+            {
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+                parameters.Add("X", gameMemory.PlayerXPosition.ToString());
+                parameters.Add("Y", gameMemory.PlayerYPosition.ToString());
+                parameters.Add("Z", gameMemory.PlayerZPosition.ToString());
+                parameters.Add("Rotation1", gameMemory.PlayerRotation1.ToString());
+                parameters.Add("Rotation2", gameMemory.PlayerRotation2.ToString());
+
+                DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
+            }
+
+            if (config.ShowStatusesInfo)
+            {
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+                parameters.Add("Attack", gameMemory.Attack.ToString());
+                parameters.Add("Speed", gameMemory.Speed.ToString());
+                parameters.Add("Life", gameMemory.Life.ToString());
+                parameters.Add("Stock", (gameMemory.ItemStock + 1).ToString());
+                parameters.Add("ThrowDistance", gameMemory.ThrowDistance.ToString());
+
+                DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
+            }
+
+            if (config.ShowVelocityInfo)
+            {
+                var distX = _previousXCoordinates - gameMemory.PlayerXPosition;
+                var distY = _previousYCoordinates - gameMemory.PlayerYPosition;
+                var distZ = _previousZCoordinates - gameMemory.PlayerZPosition;
+
+                var speedX = distX / (gameMemory.GameTime / 1000);
+                var speedY = distY / (gameMemory.GameTime / 1000);
+                var speedZ = distZ / (gameMemory.GameTime / 1000);
+
+                var speed =  (Math.Sqrt(Math.Pow(speedX ,2) + Math.Pow(speedY, 2) + Math.Pow(speedZ, 2)) * 1000);
+
+                _previousXCoordinates = gameMemory.PlayerXPosition;
+                _previousYCoordinates = gameMemory.PlayerYPosition;
+                _previousZCoordinates = gameMemory.PlayerZPosition;
+
+                if (!(speed > (_previousSpeedValues[_previousSpeedValues.Count -1] * 3)))
+                {
+                    _previousSpeedValues.Add(speed);
+                }
+
+                if (_previousSpeedValues.Count > config.SpeedAverageFactor)
+                {
+                    _previousSpeedValues.RemoveAt(0);
+                }
+
+                if (speed == 0)
+                {
+                    for (int i = 0; i < _previousSpeedValues.Count; i++)
+                    {
+                        _previousSpeedValues[i] = 0;
+                    }
+                }
+
+                double averageSpeed = 0;
+
+                foreach (var speedValues in _previousSpeedValues)
+                {
+                    averageSpeed += speedValues;
+                }
+
+                speed = averageSpeed / _previousSpeedValues.Count;
+
+                //var speed = gameMemory.WalkedDistance - _previousWalkedDistance;
+                //_previousWalkedDistance = gameMemory.WalkedDistance;
+
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+                parameters.Add("Speed", string.Format("{0:0.00}", speed));
+
+                DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
+            }
+
+            if (config.ShowWeaponInfo && gameMemory.WeaponMaxAmmo == 1 && gameMemory.WeaponMaxDurability > 10)
+            {
+                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.WeaponDurability, gameMemory.WeaponMaxDurability);
+            }
+
+            if (config.ShowBossInfo && gameMemory.BossMaxHealth > 900)
+            {
+                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.BossCurrentHealth, gameMemory.BossMaxHealth);
+            }
+        }
+        private void DrawCampainInfo(ref float xOffset, ref float yOffset, uint gametime)
+        {
+            uint day = gametime / (108000) / 24,
+                 hours = gametime / (108000) % 24,
+                 minutes = gametime / (108000 / 60) % 60,
+                 seconds = gametime / (108000 / 60 / 60) % 60;
+
+            string suffix = "AM";
+            if (hours >= 12)
+            {
+                suffix = "PM";
+                hours %= 12;
+            }
+            if (hours == 0) { hours = 12; }
+
+            SolidBrush TextColor = _white;
+
+            float elementHeight = 38f;
+
+            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
+
+            // Draw text
+            _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset += _text1YOffset, string.Format("Day {0} - {1}:{2}:{3} {4}", (int)day, hours.ToString("D2"), minutes.ToString("D2"), seconds.ToString("D2"), suffix));
+
+            yOffset += elementHeight - _text1YOffset;
+
+            yOffset += config.BlockOffset;
+        }
+
+        private void DrawBlocInfo(ref float xOffset, ref float yOffset, Dictionary<string, string> parameters)
+        {
+            SolidBrush TextColor = _white;
+
+            float elementHeight = (30f * parameters.Count) + 8f;
+
+            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
+
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                if (i == 0)
+                {
+                    _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset += _text1YOffset, string.Format("{0}: {1}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Value));
+                }
+                else
+                {
+                    _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset += _textYOffset, string.Format("{0}: {1}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Value));
+                }
+            }
+
+            yOffset += (elementHeight - _text1YOffset - (_textYOffset * (parameters.Count - 1)));
+
+            yOffset += (config.BlockOffset);
+        }
+
+        private void DrawProgressBar(ref float xOffset, ref float yOffset, float currentValue, float maxValue)
+        {
+            // Define steps for color changement
+            float step1 = maxValue / 3 * 2;
+            float step2 = maxValue / 3;
+
+            float percentage = currentValue / maxValue;
+
+            // Define colors according to steps
+            SolidBrush BarColor = (currentValue > step1) ? _darkgreen : (currentValue > step2) ? _darkyellow : (currentValue <= step2) ? _darkred : _greydarker;
+            SolidBrush TextColor = (currentValue > step1) ? _lightgreen : (currentValue > step2) ? _lightyellow : (currentValue < step2) ? _lightred : _white;
+
+            float elementHeight = 38f;
+
+            // Draw the rectangle
+            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize - 2, yOffset + elementHeight);
+            _graphics.FillRectangle(BarColor, xOffset, yOffset, xOffset + ((_elementSize - 2) * percentage), yOffset + elementHeight);
+
+            // Define text to display
+            string currentValueInfo = float.IsNaN(currentValue) ? string.Empty : string.Format("{0}", (int)currentValue);
+            string percentInfo = float.IsNaN(percentage) ? "0%" : string.Format("({0:P1})", percentage);
+            float endOfBar = (xOffset + _elementSize) - _textXOffset - GetStringSize(percentInfo, _textXOffset);
+
+            // Draw text
+            _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset + _text1YOffset, currentValueInfo);
+            _graphics.DrawText(_consolasBold, _fontSize, TextColor, endOfBar, yOffset + _text1YOffset, percentInfo);
+
+            yOffset += elementHeight - _text1YOffset;
+
+            yOffset += config.BlockOffset;
         }
 
         private float GetStringSize(string str, float size = 20f)
@@ -208,55 +408,7 @@ namespace SRTPluginUIRE2DirectXOverlay
             return (float)_graphics?.MeasureString(_consolasBold, size, str).X;
         }
 
-        private void DrawProgressBar(ref float xOffset, ref float yOffset, float chealth, float mhealth, float percentage = 1f)
-        {
-            string perc = float.IsNaN(percentage) ? "0%" : string.Format("{0:P1}", percentage);
-            //float endOfBar = 420f - (perc.Length * 12);
-            float endOfBar = config.PositionX + 420f - GetStringSize(perc);
-            if (Bosses.ContainsKey(mhealth))
-            {
-                _graphics.DrawRectangle(_greydark, xOffset, yOffset += 28f, xOffset + 420f, yOffset + 22f, 4f);
-                _graphics.FillRectangle(_greydarker, xOffset + 1f, yOffset + 1f, xOffset + 418f, yOffset + 20f);
-                _graphics.FillRectangle(_darkred, xOffset + 1f, yOffset + 1f, xOffset + (418f * percentage), yOffset + 20f);
-                _graphics.DrawText(_consolasBold, 20f, _white, xOffset + 10f, yOffset - 2f, string.Format("{0}: {1} / {2}", Bosses[mhealth].ToUpper(), chealth, mhealth));
-                _graphics.DrawText(_consolasBold, 20f, _white, endOfBar, yOffset - 2f, perc);
-            }
-            else if (!config.ShowBossesOnly)
-            {
-                _graphics.DrawRectangle(_greydark, xOffset, yOffset += 28f, xOffset + 420f, yOffset + 22f, 4f);
-                _graphics.FillRectangle(_greydarker, xOffset + 1f, yOffset + 1f, xOffset + 418f, yOffset + 20f);
-                _graphics.FillRectangle(_darkred, xOffset + 1f, yOffset + 1f, xOffset + (418f * percentage), yOffset + 20f);
-                _graphics.DrawText(_consolasBold, 20f, _white, xOffset + 10f, yOffset - 2f, string.Format("{0} / {1}", chealth, mhealth));
-                _graphics.DrawText(_consolasBold, 20f, _white, endOfBar, yOffset - 2f, perc);
-            }
-        }
-
-        private void DrawHealthBar(ref float xOffset, ref float yOffset, float chealth, float mhealth, float percentage = 1f)
-        {
-            SolidBrush HPBarColor = (chealth > 600) ? _darkgreen : (chealth > 300) ? _darkyellow : (chealth > 0) ? _darkred : _greydarker;
-            SolidBrush TextColor = (chealth > 600) ? _lightgreen : (chealth > 300) ? _lightyellow : (chealth > 0) ? _lightred : _white;
-
-            if (isGraphics)
-            {
-                _graphics.DrawRectangle(_greydark, xOffset, yOffset += 28f, xOffset + 420f, yOffset + 22f, 4f);
-                _graphics.FillRectangle(_greydarker, xOffset + 1f, yOffset + 1f, xOffset + 418f, yOffset + 20f);
-                _graphics.FillRectangle(HPBarColor, xOffset + 1f, yOffset + 1f, xOffset + (418f * percentage), yOffset + 20f);
-                string perc = float.IsNaN(percentage) ? "0%" : string.Format("{0:P1}", percentage);
-                //float endOfBar = 420f - (perc.Length * 12);
-                float endOfBar = config.PositionX + 420f - GetStringSize(perc);
-                _graphics.DrawText(_consolasBold, 20f, TextColor, endOfBar, yOffset - 2f, perc);
-            }
-
-
-        }
-
-        public enum EventType : int
-        {
-            None = 0,
-            SkipCutscene = 1,
-            Cutscene = 2,
-            Interactable = 3,
-        }
+        #endregion Functions
     }
 
 }

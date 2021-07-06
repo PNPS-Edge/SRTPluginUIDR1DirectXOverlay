@@ -1,7 +1,7 @@
 ﻿using SRTPluginBase;
 using System;
 
-namespace SRTPluginUIRE2DirectXOverlay
+namespace SRTPluginUIDR1DirectXOverlay
 {
     internal class PluginInfo : IPluginInfo
     {

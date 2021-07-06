@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace SRTPluginUIRE2DirectXOverlay
+namespace SRTPluginUIDR1DirectXOverlay
 {
     public static class PInvoke
     {

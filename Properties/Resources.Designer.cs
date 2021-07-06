@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace SRTPluginUIRE2DirectXOverlay.Properties {
+namespace SRTPluginUIDR1DirectXOverlay.Properties {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace SRTPluginUIRE2DirectXOverlay.Properties {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("SRTPluginUIRE2DirectXOverlay.Properties.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("SRTPluginUIDR1DirectXOverlay.Properties.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -57,26 +57,6 @@ namespace SRTPluginUIRE2DirectXOverlay.Properties {
             }
             set {
                 resourceCulture = value;
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] _40d_texout {
-            get {
-                object obj = ResourceManager.GetObject("_40d_texout", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] ui0100_iam_texout {
-            get {
-                object obj = ResourceManager.GetObject("ui0100_iam_texout", resourceCulture);
-                return ((byte[])(obj));
             }
         }
     }

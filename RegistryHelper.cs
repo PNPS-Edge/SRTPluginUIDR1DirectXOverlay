@@ -1,6 +1,6 @@
 ﻿using Microsoft.Win32;
 
-namespace SRTPluginUIRE2DirectXOverlay
+namespace SRTPluginUIDR1DirectXOverlay
 {
     public static class RegistryHelper
     {

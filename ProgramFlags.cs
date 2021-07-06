@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace SRTPluginUIRE2DirectXOverlay
+namespace SRTPluginUIDR1DirectXOverlay
 {
     [Flags]
     public enum ProgramFlags : byte
