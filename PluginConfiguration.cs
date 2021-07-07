@@ -1,18 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SRTPluginUIDR1DirectXOverlay.Structs;
+using System.ComponentModel.DataAnnotations;
 
 namespace SRTPluginUIDR1DirectXOverlay
 {
     public class PluginConfiguration
     {
+        public LayoutConfiguration Layout { get; set; }
         public bool Debug { get; set; }
         public float ScalingFactor { get; set; }
-        
-        public bool DockRight { get; set; }
-        public float PositionX { get; set; }
-        public float PositionY { get; set; }
-        public float ElementWidth { get; set; }
-        public string StringFontName { get; set; }
-        public float BlockOffset { get; set; }
 
         public bool ShowCampainInfo { get; set; }
         public bool ShowCoordinatesInfo { get; set; }
@@ -21,7 +16,8 @@ namespace SRTPluginUIDR1DirectXOverlay
         public bool ShowBossInfo { get; set; }
         public bool ShowVelocityInfo { get; set; }
 
-        [Range(1,50)]
+        public bool ShowCarHealthInfo { get; set; }
+
         public int SpeedAverageFactor { get; set; }
 
         public PluginConfiguration()
@@ -29,12 +25,15 @@ namespace SRTPluginUIDR1DirectXOverlay
             Debug = false;
             ScalingFactor = 1f;
 
-            DockRight = true;
-            PositionX = 150f;
-            PositionY = 320f;
-            ElementWidth = 320f;
-            StringFontName = "Impact";
-            BlockOffset = 25f;
+            Layout = new LayoutConfiguration();
+            Layout.FontName = "Lucida Sans";
+            Layout.FontSize = 22;
+            Layout.IsRightDocked = true;
+            Layout.XPosition = 150f;
+            Layout.YPosition = 320f;
+            Layout.ElementWidth = 320f;
+            Layout.ElementOffset = 10f;
+            Layout.ColumnOffset = 10f;
 
             ShowCampainInfo = true;
             ShowCoordinatesInfo = true;
@@ -42,6 +41,10 @@ namespace SRTPluginUIDR1DirectXOverlay
             ShowWeaponInfo = true;
             ShowBossInfo = true;
             ShowVelocityInfo = true;
+            ShowCarHealthInfo = true;
+
+
+            SpeedAverageFactor = 20;
         }
     }
 }

@@ -33,7 +33,7 @@ namespace SRTPluginUIDR1DirectXOverlay
         private float _fontSize = 22f;
         private float _textXOffset = 22f;
         private float _text1YOffset = 5f;
-        private float _textYOffset = 28f;
+        private float _textYOffset;
         private float _elementSize = 320f;
 
         private SolidBrush _darkblue;
@@ -100,7 +100,7 @@ namespace SRTPluginUIDR1DirectXOverlay
             // Get a refernence to the underlying RenderTarget from SharpDX. This'll be used to draw portions of images.
             _device = (SharpDX.Direct2D1.WindowRenderTarget)typeof(Graphics).GetField("_device", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(_graphics);
 
-            _consolasBold = _graphics?.CreateFont(config.StringFontName, 12, true);
+            _consolasBold = _graphics.CreateFont(config.Layout.FontName, 12, true);
 
             // Variant Gradient
             // Light
@@ -117,9 +117,11 @@ namespace SRTPluginUIDR1DirectXOverlay
             _darkblue = _graphics?.CreateSolidBrush(0, 12, 64, 140);
             _darkerblue = _graphics?.CreateSolidBrush(0, 0, 48, 140);
 
+            // Font Color
+            _white = _graphics?.CreateSolidBrush(255, 255, 255, 255);
 
             _black = _graphics?.CreateSolidBrush(0, 0, 0, 140);
-            _white = _graphics?.CreateSolidBrush(255, 255, 255, 255);
+
             _grey = _graphics?.CreateSolidBrush(128, 128, 128, 140);
             _greydark = _graphics?.CreateSolidBrush(64, 64, 64, 140);
             _greydarker = _graphics?.CreateSolidBrush(24, 24, 24, 140);
@@ -130,6 +132,7 @@ namespace SRTPluginUIDR1DirectXOverlay
             _goldenrod = _graphics?.CreateSolidBrush(218, 165, 32, 140);
 
             _previousSpeedValues = new List<double>();
+            _textYOffset = GetLineHeight();
 
             return 0;
         }
@@ -148,7 +151,7 @@ namespace SRTPluginUIDR1DirectXOverlay
                 if (config.ScalingFactor != 1f)
                     _device.Transform = new SharpDX.Mathematics.Interop.RawMatrix3x2(config.ScalingFactor, 0f, 0f, config.ScalingFactor, 0f, 0f);
 
-                if (_graphics != null && this.gameMemory.IsGamePaused == false && this.gameMemory.GameMenu == 3)
+                if (_graphics != null && this.gameMemory.Game.IsGamePaused == false && this.gameMemory.Game.GameMenu == 3)
                     DrawOverlay();
 
                 if (config.ScalingFactor != 1f)
@@ -208,14 +211,14 @@ namespace SRTPluginUIDR1DirectXOverlay
 
         private void DrawOverlay()
         {
-            float baseXOffset = config.PositionX;
-            float baseYOffset = config.PositionY;
-            _elementSize = config.ElementWidth;
+            float baseXOffset = config.Layout.XPosition;
+            float baseYOffset = config.Layout.YPosition;
+            _elementSize = config.Layout.ElementWidth;
 
             // Player HP
             float statsXOffset;
 
-            if (config.DockRight)
+            if (config.Layout.IsRightDocked)
             {
                 statsXOffset = _graphics.Width - baseXOffset - _elementSize;
             }
@@ -228,17 +231,35 @@ namespace SRTPluginUIDR1DirectXOverlay
 
             if (config.ShowCampainInfo)
             {
-                DrawCampainInfo(ref statsXOffset, ref statsYOffset, gameMemory.GameTime);
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+                parameters.Add(string.Empty, GetGameTimeToString(gameMemory.Campain.GameTime));
+                parameters.Add("Campain", string.Format("{0} ({1})", GetCaseNameFromCampainProgress(gameMemory.Campain.CampaignProgress), gameMemory.Campain.CampaignProgress.ToString()));
+
+                if (config.Debug)
+                {
+                    parameters.Add("Room", gameMemory.Campain.RoomId.ToString());
+                    parameters.Add("Room From:", gameMemory.Campain.LoadingRoom1Id.ToString());
+                    parameters.Add("Room To:", gameMemory.Campain.LoadingRoom1Id.ToString());
+                }
+
+                DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
             }
 
             if (config.ShowCoordinatesInfo)
             {
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
-                parameters.Add("X", gameMemory.PlayerXPosition.ToString());
-                parameters.Add("Y", gameMemory.PlayerYPosition.ToString());
-                parameters.Add("Z", gameMemory.PlayerZPosition.ToString());
-                parameters.Add("Rotation1", gameMemory.PlayerRotation1.ToString());
-                parameters.Add("Rotation2", gameMemory.PlayerRotation2.ToString());
+                parameters.Add("X", gameMemory.Player.XPosition.ToString());
+                parameters.Add("Y", gameMemory.Player.YPosition.ToString());
+                parameters.Add("Z", gameMemory.Player.ZPosition.ToString());
+                parameters.Add("Rot.1", gameMemory.Player.Rotation1.ToString());
+                parameters.Add("Rot.2", gameMemory.Player.Rotation2.ToString());
+                
+                if (config.Debug)
+                {
+                    parameters.Add("Cam X", gameMemory.CameraXPosition.ToString());
+                    parameters.Add("Cam Y", gameMemory.CameraYPosition.ToString());
+                    parameters.Add("Cam Z", gameMemory.CameraZPosition.ToString());
+                }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
             }
@@ -246,48 +267,25 @@ namespace SRTPluginUIDR1DirectXOverlay
             if (config.ShowStatusesInfo)
             {
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
-                parameters.Add("Attack", gameMemory.Attack.ToString());
-                parameters.Add("Speed", gameMemory.Speed.ToString());
-                parameters.Add("Life", gameMemory.Life.ToString());
-                parameters.Add("Stock", (gameMemory.ItemStock + 1).ToString());
-                parameters.Add("ThrowDistance", gameMemory.ThrowDistance.ToString());
+                parameters.Add("Life", string.Format("{0} / {1}", gameMemory.Player.CurrentHealth, gameMemory.Player.MaxHealth));
+                parameters.Add("Stock", (gameMemory.Player.StatusItemStock + 1).ToString());
+
+                if (config.Debug)
+                {
+                    parameters.Add("Level", gameMemory.Player.Level.ToString());
+                    parameters.Add("PP Counter", gameMemory.Player.PPCounter.ToString());
+                    parameters.Add("Attack", gameMemory.Player.StatusAttack.ToString());
+                    parameters.Add("Speed", gameMemory.Player.StatusSpeed.ToString());
+                    parameters.Add("ThrowDistance", gameMemory.Player.StatusThrowDistance.ToString());
+                    
+                }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
             }
 
             if (config.ShowVelocityInfo)
             {
-                var distX = _previousXCoordinates - gameMemory.PlayerXPosition;
-                var distY = _previousYCoordinates - gameMemory.PlayerYPosition;
-                var distZ = _previousZCoordinates - gameMemory.PlayerZPosition;
-
-                var speedX = distX / (gameMemory.GameTime / 1000);
-                var speedY = distY / (gameMemory.GameTime / 1000);
-                var speedZ = distZ / (gameMemory.GameTime / 1000);
-
-                var speed =  (Math.Sqrt(Math.Pow(speedX ,2) + Math.Pow(speedY, 2) + Math.Pow(speedZ, 2)) * 1000);
-
-                _previousXCoordinates = gameMemory.PlayerXPosition;
-                _previousYCoordinates = gameMemory.PlayerYPosition;
-                _previousZCoordinates = gameMemory.PlayerZPosition;
-
-                if (!(speed > (_previousSpeedValues[_previousSpeedValues.Count -1] * 3)))
-                {
-                    _previousSpeedValues.Add(speed);
-                }
-
-                if (_previousSpeedValues.Count > config.SpeedAverageFactor)
-                {
-                    _previousSpeedValues.RemoveAt(0);
-                }
-
-                if (speed == 0)
-                {
-                    for (int i = 0; i < _previousSpeedValues.Count; i++)
-                    {
-                        _previousSpeedValues[i] = 0;
-                    }
-                }
+                ComputeVelocity();
 
                 double averageSpeed = 0;
 
@@ -296,10 +294,7 @@ namespace SRTPluginUIDR1DirectXOverlay
                     averageSpeed += speedValues;
                 }
 
-                speed = averageSpeed / _previousSpeedValues.Count;
-
-                //var speed = gameMemory.WalkedDistance - _previousWalkedDistance;
-                //_previousWalkedDistance = gameMemory.WalkedDistance;
+                var speed = averageSpeed / _previousSpeedValues.Count;
 
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
                 parameters.Add("Speed", string.Format("{0:0.00}", speed));
@@ -309,69 +304,50 @@ namespace SRTPluginUIDR1DirectXOverlay
 
             if (config.ShowWeaponInfo && gameMemory.WeaponMaxAmmo == 1 && gameMemory.WeaponMaxDurability > 10)
             {
-                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.WeaponDurability, gameMemory.WeaponMaxDurability);
+                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.WeaponDurability, gameMemory.WeaponMaxDurability, "Item");
             }
 
-            if (config.ShowBossInfo && gameMemory.BossMaxHealth > 900)
+            if (config.ShowCarHealthInfo && gameMemory.Campain.RoomId == 1536)
             {
-                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.BossCurrentHealth, gameMemory.BossMaxHealth);
+                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.TunnelCarCurrentHealth, gameMemory.TunnelCarMaxHealth, "Car");
             }
-        }
-        private void DrawCampainInfo(ref float xOffset, ref float yOffset, uint gametime)
-        {
-            uint day = gametime / (108000) / 24,
-                 hours = gametime / (108000) % 24,
-                 minutes = gametime / (108000 / 60) % 60,
-                 seconds = gametime / (108000 / 60 / 60) % 60;
 
-            string suffix = "AM";
-            if (hours >= 12)
+            if (config.ShowBossInfo && gameMemory.BossMaxHealth > 900 && gameMemory.BossMaxHealth < 10001)
             {
-                suffix = "PM";
-                hours %= 12;
+                DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.BossCurrentHealth, gameMemory.BossMaxHealth, "Boss");
             }
-            if (hours == 0) { hours = 12; }
-
-            SolidBrush TextColor = _white;
-
-            float elementHeight = 38f;
-
-            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
-
-            // Draw text
-            _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset += _text1YOffset, string.Format("Day {0} - {1}:{2}:{3} {4}", (int)day, hours.ToString("D2"), minutes.ToString("D2"), seconds.ToString("D2"), suffix));
-
-            yOffset += elementHeight - _text1YOffset;
-
-            yOffset += config.BlockOffset;
         }
 
         private void DrawBlocInfo(ref float xOffset, ref float yOffset, Dictionary<string, string> parameters)
         {
             SolidBrush TextColor = _white;
 
-            float elementHeight = (30f * parameters.Count) + 8f;
+            float elementHeight = (GetLineHeight() * parameters.Count) + 8f;
+
+            NewColumnNeeded(ref xOffset, ref yOffset, elementHeight);
 
             _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
 
             for (int i = 0; i < parameters.Count; i++)
             {
-                if (i == 0)
-                {
-                    _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset += _text1YOffset, string.Format("{0}: {1}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Value));
-                }
-                else
-                {
-                    _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset += _textYOffset, string.Format("{0}: {1}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Value));
-                }
+                var yoffset = i == 0 ? _text1YOffset : _textYOffset;
+
+                _graphics.DrawText(
+                        _consolasBold,
+                        config.Layout.FontSize,
+                        TextColor,
+                        xOffset + _textXOffset,
+                        yOffset += yoffset,
+                        string.Format("{0}{1} {2}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Key == string.Empty ? string.Empty : ":", parameters.ElementAt(i).Value)
+                        );
             }
 
             yOffset += (elementHeight - _text1YOffset - (_textYOffset * (parameters.Count - 1)));
 
-            yOffset += (config.BlockOffset);
+            yOffset += config.Layout.ElementOffset;
         }
 
-        private void DrawProgressBar(ref float xOffset, ref float yOffset, float currentValue, float maxValue)
+        private void DrawProgressBar(ref float xOffset, ref float yOffset, float currentValue, float maxValue, string title)
         {
             // Define steps for color changement
             float step1 = maxValue / 3 * 2;
@@ -383,29 +359,170 @@ namespace SRTPluginUIDR1DirectXOverlay
             SolidBrush BarColor = (currentValue > step1) ? _darkgreen : (currentValue > step2) ? _darkyellow : (currentValue <= step2) ? _darkred : _greydarker;
             SolidBrush TextColor = (currentValue > step1) ? _lightgreen : (currentValue > step2) ? _lightyellow : (currentValue < step2) ? _lightred : _white;
 
-            float elementHeight = 38f;
+            float elementHeight = (GetLineHeight() * 1) + 8f;
+
+            NewColumnNeeded(ref xOffset, ref yOffset, elementHeight);
 
             // Draw the rectangle
-            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize - 2, yOffset + elementHeight);
-            _graphics.FillRectangle(BarColor, xOffset, yOffset, xOffset + ((_elementSize - 2) * percentage), yOffset + elementHeight);
+            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
+            _graphics.FillRectangle(BarColor, xOffset, yOffset, xOffset + ((_elementSize) * percentage), yOffset + elementHeight);
 
             // Define text to display
-            string currentValueInfo = float.IsNaN(currentValue) ? string.Empty : string.Format("{0}", (int)currentValue);
+            string currentValueInfo = float.IsNaN(currentValue) ? string.Empty : string.Format("{0}: {1}", title, (int)currentValue);
             string percentInfo = float.IsNaN(percentage) ? "0%" : string.Format("({0:P1})", percentage);
-            float endOfBar = (xOffset + _elementSize) - _textXOffset - GetStringSize(percentInfo, _textXOffset);
+            float endOfBar = (xOffset + _elementSize) - _textXOffset - GetStringSize(percentInfo, config.Layout.FontSize);
 
             // Draw text
-            _graphics.DrawText(_consolasBold, _fontSize, TextColor, xOffset + _textXOffset, yOffset + _text1YOffset, currentValueInfo);
-            _graphics.DrawText(_consolasBold, _fontSize, TextColor, endOfBar, yOffset + _text1YOffset, percentInfo);
+            _graphics.DrawText(_consolasBold, config.Layout.FontSize, TextColor, xOffset + _textXOffset, yOffset + _text1YOffset, currentValueInfo);
+            _graphics.DrawText(_consolasBold, config.Layout.FontSize, TextColor, endOfBar, yOffset + _text1YOffset, percentInfo);
 
-            yOffset += elementHeight - _text1YOffset;
+            yOffset += elementHeight;
 
-            yOffset += config.BlockOffset;
+            yOffset += config.Layout.ElementOffset;
         }
 
         private float GetStringSize(string str, float size = 20f)
         {
             return (float)_graphics?.MeasureString(_consolasBold, size, str).X;
+        }
+
+        /// <summary>
+        /// Gets the height of the line according the choosen font size
+        /// </summary>
+        /// <param name="offset">Offset to add to the line</param>
+        /// <returns>Height of the line</returns>
+        private float GetLineHeight(float offset = 0f)
+        {
+            // fontSize / 72 = to height of the font in inches. 
+            // height * 96 = conversion to inches to pixels
+            return (config.Layout.FontSize / 72 * 96) + offset;
+        }
+
+        private void NewColumnNeeded(ref float xOffset, ref float yOffset, float elementHeight)
+        {
+            if (yOffset + elementHeight > _graphics.Height - 15f)
+            {
+                if (config.Layout.IsRightDocked)
+                {
+                    xOffset = xOffset - (config.Layout.ElementWidth + config.Layout.ColumnOffset);
+                }
+                else
+                {
+                    xOffset = xOffset + config.Layout.ElementWidth + config.Layout.ColumnOffset;
+                }
+
+                yOffset = config.Layout.YPosition;
+            }
+        }
+
+        private string GetGameTimeToString(uint gametime)
+        {
+            uint day = gametime / (108000) / 24,
+                hours = gametime / (108000) % 24,
+                minutes = gametime / (108000 / 60) % 60,
+                seconds = gametime / (108000 / 60 / 60) % 60;
+
+            string suffix = "AM";
+            if (hours >= 12)
+            {
+                suffix = "PM";
+                hours %= 12;
+            }
+            if (hours == 0) { hours = 12; }
+
+            return string.Format("Day {0} - {1}:{2}:{3} {4}", (int)day, hours.ToString("D2"), minutes.ToString("D2"), seconds.ToString("D2"), suffix);
+        }
+
+        private string GetCaseNameFromCampainProgress(int campainStatus)
+        {
+            switch (campainStatus)
+            {
+                case < 80:
+                    return "Prologue";
+                case < 110:
+                    return "Case 1.1";
+                case < 130:
+                    return "Case 1.2";
+                case < 140:
+                    return "Case 1.3";
+                case < 150:
+                    return "Case 1.4";
+                case < 205:
+                    return "Case 2.1";
+                case < 215:
+                    return "Case 2.2";
+                case < 220:
+                    return "Case 2.3";
+                case < 230:
+                    return "Case 3.1";
+                case < 250:
+                    return "Case 4.1";
+                case < 280:
+                    return "Case 4.2";
+                case < 290:
+                    return "Case 5.1";
+                case < 300:
+                    return "Case 5.2";
+                case < 320:
+                    return "Case 6.1";
+                case < 340:
+                    return "Case 7.1";
+                case < 350:
+                    return "Case 7.2";
+                case < 360:
+                    return "Case 8.1";
+                case < 370:
+                    return "Case 8.2";
+                case < 390:
+                    return "Case 8.3";
+                case < 400:
+                    return "Case 8.4";
+                case < 500:
+                    return "THE FACTS";
+                case < 650:
+                    return "Overtime 1";
+                case < 999:
+                    return "Overtime 2";
+                default:
+                    return "Truth vanished!!";
+            }
+        }
+
+        private void ComputeVelocity()
+        {
+            var distX = _previousXCoordinates - gameMemory.Player.XPosition;
+            var distY = _previousYCoordinates - gameMemory.Player.YPosition;
+            var distZ = _previousZCoordinates - gameMemory.Player.ZPosition;
+
+            var speedX = distX / (gameMemory.Campain.GameTime / 1000);
+            var speedY = distY / (gameMemory.Campain.GameTime / 1000);
+            var speedZ = distZ / (gameMemory.Campain.GameTime / 1000);
+
+            var speed = (Math.Sqrt(Math.Pow(speedX, 2) + Math.Pow(speedY, 2) + Math.Pow(speedZ, 2)) * 1000);
+
+            _previousXCoordinates = gameMemory.Player.XPosition;
+            _previousYCoordinates = gameMemory.Player.YPosition;
+            _previousZCoordinates = gameMemory.Player.ZPosition;
+
+            _previousSpeedValues.Add(speed);
+
+            if (speed > (_previousSpeedValues[_previousSpeedValues.Count - 1] * 3))
+            {
+                _previousSpeedValues.RemoveAt(_previousSpeedValues.Count - 1);
+            }
+
+            if (_previousSpeedValues.Count > config.SpeedAverageFactor)
+            {
+                _previousSpeedValues.RemoveAt(0);
+            }
+
+            if (speed == 0)
+            {
+                for (int i = 0; i < _previousSpeedValues.Count; i++)
+                {
+                    _previousSpeedValues[i] = 0;
+                }
+            }
         }
 
         #endregion Functions

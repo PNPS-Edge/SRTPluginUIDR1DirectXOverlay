@@ -9,9 +9,9 @@ namespace SRTPluginUIDR1DirectXOverlay
 
         public string Description => "A DirectX-based Overlay User Interface for displaying Dead Rising (2016) game memory values.";
 
-        public string Author => "Pix N Pick Studio & VideoGameRoulette";
+        public string Author => "PNPS_Edge";
 
-        public Uri MoreInfoURL => new Uri("https://github.com/VideoGameRoulette/SRTPluginUIDR1DirectXOverlay");
+        public Uri MoreInfoURL => new Uri("https://github.com/PNPS-Edge/SRTPluginUIDR1DirectXOverlay");
 
         public int VersionMajor => assemblyFileVersion.ProductMajorPart;
 
