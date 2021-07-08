@@ -30,11 +30,10 @@ namespace SRTPluginUIDR1DirectXOverlay
         private SharpDX.Direct2D1.WindowRenderTarget _device;
 
         private Font _consolasBold;
-        private float _fontSize = 22f;
         private float _textXOffset = 22f;
         private float _text1YOffset = 5f;
         private float _textYOffset;
-        private float _elementSize = 320f;
+        private float _elementSize;
 
         private SolidBrush _darkblue;
         private SolidBrush _darkerblue;
@@ -67,6 +66,7 @@ namespace SRTPluginUIDR1DirectXOverlay
         public override int Startup(IPluginHostDelegates hostDelegates)
         {
             this.hostDelegates = hostDelegates;
+
             config = LoadConfiguration<PluginConfiguration>();
 
             gameProcess = GetProcess();
@@ -97,7 +97,7 @@ namespace SRTPluginUIDR1DirectXOverlay
 
             _graphics.Setup();
 
-            // Get a refernence to the underlying RenderTarget from SharpDX. This'll be used to draw portions of images.
+            // Get a reference to the underlying RenderTarget from SharpDX. This'll be used to draw portions of images.
             _device = (SharpDX.Direct2D1.WindowRenderTarget)typeof(Graphics).GetField("_device", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(_graphics);
 
             _consolasBold = _graphics.CreateFont(config.Layout.FontName, 12, true);
@@ -133,6 +133,7 @@ namespace SRTPluginUIDR1DirectXOverlay
 
             _previousSpeedValues = new List<double>();
             _textYOffset = GetLineHeight();
+            _elementSize = config.Layout.ElementWidth;
 
             return 0;
         }
