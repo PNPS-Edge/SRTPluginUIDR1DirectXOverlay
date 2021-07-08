@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace SRTPluginUIDR1DirectXOverlay
@@ -29,34 +30,36 @@ namespace SRTPluginUIDR1DirectXOverlay
         private Graphics _graphics;
         private SharpDX.Direct2D1.WindowRenderTarget _device;
 
-        private Font _consolasBold;
+        private Font _font;
         private float _textXOffset = 22f;
         private float _text1YOffset = 5f;
         private float _textYOffset;
-        private float _elementSize;
 
-        private SolidBrush _darkblue;
+        // Dead Rising color
         private SolidBrush _darkerblue;
-        private SolidBrush _black;
+
+        // Font
         private SolidBrush _white;
-        private SolidBrush _grey;
+
+        // Gradient Progress Bar
         private SolidBrush _darkred;
-        private SolidBrush _red;
         private SolidBrush _lightred;
-        private SolidBrush _lightyellow;
-        private SolidBrush _lightgreen;
-        private SolidBrush _lawngreen;
-        private SolidBrush _goldenrod;
-        private SolidBrush _greydark;
-        private SolidBrush _greydarker;
-        private SolidBrush _darkgreen;
+
         private SolidBrush _darkyellow;
+        private SolidBrush _lightyellow;
+
+        private SolidBrush _darkgreen;
+        private SolidBrush _lightgreen;
+
+        private SolidBrush _greydarker;
 
         public PluginConfiguration config;
 
         private float _previousXCoordinates;
         private float _previousYCoordinates;
         private float _previousZCoordinates;
+
+        private Vector3 _previousPosition;
 
         private List<double> _previousSpeedValues;
 
@@ -65,13 +68,18 @@ namespace SRTPluginUIDR1DirectXOverlay
         [STAThread]
         public override int Startup(IPluginHostDelegates hostDelegates)
         {
-            this.hostDelegates = hostDelegates;
-
-            config = LoadConfiguration<PluginConfiguration>();
-
+            // Get the game process
             gameProcess = GetProcess();
             if (gameProcess == default)
                 return 1;
+
+            // Injects the host delegates to communicate with host
+            this.hostDelegates = hostDelegates;
+
+            // Load config file
+            config = LoadConfiguration<PluginConfiguration>();
+
+            // Get game window
             gameWindowHandle = gameProcess.MainWindowHandle;
 
             DEVMODE devMode = default;
@@ -100,40 +108,30 @@ namespace SRTPluginUIDR1DirectXOverlay
             // Get a reference to the underlying RenderTarget from SharpDX. This'll be used to draw portions of images.
             _device = (SharpDX.Direct2D1.WindowRenderTarget)typeof(Graphics).GetField("_device", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(_graphics);
 
-            _consolasBold = _graphics.CreateFont(config.Layout.FontName, 12, true);
+            // Font creation
+            _font = _graphics.CreateFont(config.Layout.FontName, 12, false);
 
-            // Variant Gradient
-            // Light
+            // Progress Bar Gradient
+            // Font color
             _lightred = _graphics?.CreateSolidBrush(255, 183, 183, 255);
             _lightyellow = _graphics?.CreateSolidBrush(255, 255, 0, 255);
             _lightgreen = _graphics?.CreateSolidBrush(0, 255, 0, 255);
 
-            // Dark
+            // Background colors
             _darkred = _graphics?.CreateSolidBrush(153, 0, 0, 100);
             _darkgreen = _graphics?.CreateSolidBrush(0, 102, 0, 100);
             _darkyellow = _graphics?.CreateSolidBrush(218, 165, 32, 100);
 
-            // Dead Rising blues
-            _darkblue = _graphics?.CreateSolidBrush(0, 12, 64, 140);
-            _darkerblue = _graphics?.CreateSolidBrush(0, 0, 48, 140);
-
-            // Font Color
-            _white = _graphics?.CreateSolidBrush(255, 255, 255, 255);
-
-            _black = _graphics?.CreateSolidBrush(0, 0, 0, 140);
-
-            _grey = _graphics?.CreateSolidBrush(128, 128, 128, 140);
-            _greydark = _graphics?.CreateSolidBrush(64, 64, 64, 140);
             _greydarker = _graphics?.CreateSolidBrush(24, 24, 24, 140);
 
-            _red = _graphics?.CreateSolidBrush(255, 0, 0, 140);
+            // Dead Rising blue
+            _darkerblue = _graphics?.CreateSolidBrush(0, 0, 48, 140);
 
-            _lawngreen = _graphics?.CreateSolidBrush(124, 252, 0, 140);
-            _goldenrod = _graphics?.CreateSolidBrush(218, 165, 32, 140);
+            // General Font Color
+            _white = _graphics?.CreateSolidBrush(255, 255, 255, 255);
 
             _previousSpeedValues = new List<double>();
-            _textYOffset = GetLineHeight();
-            _elementSize = config.Layout.ElementWidth;
+            _previousPosition = new Vector3();
 
             return 0;
         }
@@ -174,25 +172,18 @@ namespace SRTPluginUIDR1DirectXOverlay
         {
             SaveConfiguration(config);
 
-            _darkblue?.Dispose();
             _darkerblue?.Dispose();
 
-            _black?.Dispose();
             _white?.Dispose();
-            _grey?.Dispose();
-            _greydark?.Dispose();
             _greydarker?.Dispose();
             _darkred?.Dispose();
             _darkgreen?.Dispose();
             _darkyellow?.Dispose();
-            _red?.Dispose();
             _lightred?.Dispose();
             _lightyellow?.Dispose();
             _lightgreen?.Dispose();
-            _lawngreen?.Dispose();
-            _goldenrod?.Dispose();
 
-            _consolasBold?.Dispose();
+            _font?.Dispose();
 
             _device = null; // We didn't create this object so we probably shouldn't be the one to dispose of it. Just set the variable to null so the reference isn't held.
             _graphics?.Dispose(); // This should technically be the one to dispose of the _device object since it was pulled from this instance.
@@ -212,22 +203,21 @@ namespace SRTPluginUIDR1DirectXOverlay
 
         private void DrawOverlay()
         {
-            float baseXOffset = config.Layout.XPosition;
-            float baseYOffset = config.Layout.YPosition;
-            _elementSize = config.Layout.ElementWidth;
+            _textYOffset = GetLineHeight();
 
             float statsXOffset;
 
             if (config.Layout.IsRightDocked)
             {
-                statsXOffset = _graphics.Width - baseXOffset - _elementSize;
+                statsXOffset = _graphics.Width - config.Layout.XPosition - config.Layout.ElementWidth;
             }
             else
             {
-                statsXOffset = baseXOffset + 5f;
+                statsXOffset = config.Layout.XPosition;
             }
 
-            float statsYOffset = baseYOffset + 0f;
+            float statsYOffset = config.Layout.YPosition;
+
 
             if (config.ShowCampainInfo)
             {
@@ -238,8 +228,8 @@ namespace SRTPluginUIDR1DirectXOverlay
                 if (config.Debug)
                 {
                     parameters.Add("Room", gameMemory.Campain.RoomId.ToString());
-                    parameters.Add("Room From:", gameMemory.Campain.LoadingRoom1Id.ToString());
-                    parameters.Add("Room To:", gameMemory.Campain.LoadingRoom1Id.ToString());
+                    parameters.Add("Room From", gameMemory.Campain.LoadingRoom1Id.ToString());
+                    parameters.Add("Room To", gameMemory.Campain.LoadingRoom1Id.ToString());
                 }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
@@ -325,14 +315,14 @@ namespace SRTPluginUIDR1DirectXOverlay
 
             NewColumnNeeded(ref xOffset, ref yOffset, elementHeight);
 
-            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
+            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + config.Layout.ElementWidth, yOffset + elementHeight);
 
             for (int i = 0; i < parameters.Count; i++)
             {
                 var yoffset = i == 0 ? _text1YOffset : _textYOffset;
 
                 _graphics.DrawText(
-                        _consolasBold,
+                        _font,
                         config.Layout.FontSize,
                         TextColor,
                         xOffset + _textXOffset,
@@ -363,17 +353,17 @@ namespace SRTPluginUIDR1DirectXOverlay
             NewColumnNeeded(ref xOffset, ref yOffset, elementHeight);
 
             // Draw the rectangle
-            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + _elementSize, yOffset + elementHeight);
-            _graphics.FillRectangle(BarColor, xOffset, yOffset, xOffset + ((_elementSize) * percentage), yOffset + elementHeight);
+            _graphics.FillRectangle(_darkerblue, xOffset, yOffset, xOffset + config.Layout.ElementWidth, yOffset + elementHeight);
+            _graphics.FillRectangle(BarColor, xOffset, yOffset, xOffset + ((config.Layout.ElementWidth) * percentage), yOffset + elementHeight);
 
             // Define text to display
             string currentValueInfo = float.IsNaN(currentValue) ? string.Empty : string.Format("{0}: {1}", title, (int)currentValue);
             string percentInfo = float.IsNaN(percentage) ? "0%" : string.Format("({0:P1})", percentage);
-            float endOfBar = (xOffset + _elementSize) - _textXOffset - GetStringSize(percentInfo, config.Layout.FontSize);
+            float endOfBar = (xOffset + config.Layout.ElementWidth) - _textXOffset - GetStringSize(percentInfo, config.Layout.FontSize);
 
             // Draw text
-            _graphics.DrawText(_consolasBold, config.Layout.FontSize, TextColor, xOffset + _textXOffset, yOffset + _text1YOffset, currentValueInfo);
-            _graphics.DrawText(_consolasBold, config.Layout.FontSize, TextColor, endOfBar, yOffset + _text1YOffset, percentInfo);
+            _graphics.DrawText(_font, config.Layout.FontSize, TextColor, xOffset + _textXOffset, yOffset + _text1YOffset, currentValueInfo);
+            _graphics.DrawText(_font, config.Layout.FontSize, TextColor, endOfBar, yOffset + _text1YOffset, percentInfo);
 
             yOffset += elementHeight;
 
@@ -382,7 +372,7 @@ namespace SRTPluginUIDR1DirectXOverlay
 
         private float GetStringSize(string str, float size = 20f)
         {
-            return (float)_graphics?.MeasureString(_consolasBold, size, str).X;
+            return (float)_graphics?.MeasureString(_font, size, str).X;
         }
 
         /// <summary>
