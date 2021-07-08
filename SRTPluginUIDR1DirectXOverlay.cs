@@ -215,7 +215,6 @@ namespace SRTPluginUIDR1DirectXOverlay
             float baseYOffset = config.Layout.YPosition;
             _elementSize = config.Layout.ElementWidth;
 
-            // Player HP
             float statsXOffset;
 
             if (config.Layout.IsRightDocked)
@@ -276,8 +275,7 @@ namespace SRTPluginUIDR1DirectXOverlay
                     parameters.Add("PP Counter", gameMemory.Player.PPCounter.ToString());
                     parameters.Add("Attack", gameMemory.Player.StatusAttack.ToString());
                     parameters.Add("Speed", gameMemory.Player.StatusSpeed.ToString());
-                    parameters.Add("ThrowDistance", gameMemory.Player.StatusThrowDistance.ToString());
-                    
+                    parameters.Add("ThrowDistance", gameMemory.Player.StatusThrowDistance.ToString()); 
                 }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
@@ -307,7 +305,7 @@ namespace SRTPluginUIDR1DirectXOverlay
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.WeaponDurability, gameMemory.WeaponMaxDurability, "Item");
             }
 
-            if (config.ShowCarHealthInfo && gameMemory.Campain.RoomId == 1536)
+            if (config.ShowCarHealthInfo && gameMemory.Campain.RoomId == 1536 && gameMemory.Campain.CampaignProgress > 340 && gameMemory.Campain.CampaignProgress < 400)
             {
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.TunnelCarCurrentHealth, gameMemory.TunnelCarMaxHealth, "Car");
             }
@@ -338,7 +336,7 @@ namespace SRTPluginUIDR1DirectXOverlay
                         TextColor,
                         xOffset + _textXOffset,
                         yOffset += yoffset,
-                        string.Format("{0}{1} {2}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Key == string.Empty ? string.Empty : ":", parameters.ElementAt(i).Value)
+                        string.Format("{0}{1}{2}", parameters.ElementAt(i).Key, parameters.ElementAt(i).Key == string.Empty ? string.Empty : ": ", parameters.ElementAt(i).Value)
                         );
             }
 
