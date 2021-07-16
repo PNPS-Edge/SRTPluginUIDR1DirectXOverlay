@@ -222,14 +222,14 @@ namespace SRTPluginUIDR1DirectXOverlay
             if (config.ShowCampainInfo)
             {
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
-                parameters.Add(string.Empty, GetGameTimeToString(gameMemory.Campain.GameTime));
-                parameters.Add("Campain", string.Format("{0} ({1})", GetCaseNameFromCampainProgress(gameMemory.Campain.CampaignProgress), gameMemory.Campain.CampaignProgress.ToString()));
+                parameters.Add(string.Empty, GetGameTimeToString(gameMemory.Campaign.GameTime));
+                parameters.Add("Campaign", string.Format("{0} ({1})", GetCaseNameFromCampainProgress(gameMemory.Campaign.CampaignProgress), gameMemory.Campaign.CampaignProgress.ToString()));
 
                 if (config.Debug)
                 {
-                    parameters.Add("Room", gameMemory.Campain.RoomId.ToString());
-                    parameters.Add("Room From", gameMemory.Campain.LoadingRoom1Id.ToString());
-                    parameters.Add("Room To", gameMemory.Campain.LoadingRoom1Id.ToString());
+                    parameters.Add("Room", gameMemory.Campaign.RoomId.ToString());
+                    parameters.Add("Room From", gameMemory.Campaign.LoadingRoom1Id.ToString());
+                    parameters.Add("Room To", gameMemory.Campaign.LoadingRoom1Id.ToString());
                 }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
@@ -238,17 +238,17 @@ namespace SRTPluginUIDR1DirectXOverlay
             if (config.ShowCoordinatesInfo)
             {
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
-                parameters.Add("X", gameMemory.Player.XPosition.ToString());
-                parameters.Add("Y", gameMemory.Player.YPosition.ToString());
-                parameters.Add("Z", gameMemory.Player.ZPosition.ToString());
-                parameters.Add("Rot.1", gameMemory.Player.Rotation1.ToString());
-                parameters.Add("Rot.2", gameMemory.Player.Rotation2.ToString());
+                parameters.Add("X", gameMemory.Player.Position.X.ToString());
+                parameters.Add("Y", gameMemory.Player.Position.Y.ToString());
+                parameters.Add("Z", gameMemory.Player.Position.Z.ToString());
+                parameters.Add("Rot.1", gameMemory.Player.Rotation.X.ToString());
+                parameters.Add("Rot.2", gameMemory.Player.Rotation.Y.ToString());
                 
                 if (config.Debug)
                 {
-                    parameters.Add("Cam X", gameMemory.CameraXPosition.ToString());
-                    parameters.Add("Cam Y", gameMemory.CameraYPosition.ToString());
-                    parameters.Add("Cam Z", gameMemory.CameraZPosition.ToString());
+                    parameters.Add("Cam X", gameMemory.CameraPosition.X.ToString());
+                    parameters.Add("Cam Y", gameMemory.CameraPosition.Y.ToString());
+                    parameters.Add("Cam Z", gameMemory.CameraPosition.Z.ToString());
                 }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
@@ -291,16 +291,19 @@ namespace SRTPluginUIDR1DirectXOverlay
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
             }
 
+            // Display the durability info when weapon has no ammo
             if (config.ShowWeaponInfo && gameMemory.WeaponMaxAmmo == 1 && gameMemory.WeaponMaxDurability > 10)
             {
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.WeaponDurability, gameMemory.WeaponMaxDurability, "Item");
             }
 
-            if (config.ShowCarHealthInfo && gameMemory.Campain.RoomId == 1536 && gameMemory.Campain.CampaignProgress > 340 && gameMemory.Campain.CampaignProgress < 400)
+            // Display the car health only between Case 7.2 (Bomb collector) and Case 8.4 (The Butcher) and when you are in the tunnel
+            if (config.ShowCarHealthInfo && gameMemory.Campaign.RoomId == 1536 && gameMemory.Campaign.CampaignProgress > 340 && gameMemory.Campaign.CampaignProgress < 400)
             {
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.TunnelCarCurrentHealth, gameMemory.TunnelCarMaxHealth, "Car");
             }
 
+            // Display the boss health when boss max health is between 900 and 10001 
             if (config.ShowBossInfo && gameMemory.BossMaxHealth > 900 && gameMemory.BossMaxHealth < 10001)
             {
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.BossCurrentHealth, gameMemory.BossMaxHealth, "Boss");
@@ -479,19 +482,19 @@ namespace SRTPluginUIDR1DirectXOverlay
 
         private void ComputeVelocity()
         {
-            var distX = _previousXCoordinates - gameMemory.Player.XPosition;
-            var distY = _previousYCoordinates - gameMemory.Player.YPosition;
-            var distZ = _previousZCoordinates - gameMemory.Player.ZPosition;
+            var distX = _previousPosition.X - gameMemory.Player.Position.X;
+            var distY = _previousPosition.Y - gameMemory.Player.Position.Y;
+            var distZ = _previousPosition.Z - gameMemory.Player.Position.Z;
 
-            var speedX = distX / (gameMemory.Campain.GameTime / 1000);
-            var speedY = distY / (gameMemory.Campain.GameTime / 1000);
-            var speedZ = distZ / (gameMemory.Campain.GameTime / 1000);
+            var speedX = distX / (gameMemory.Campaign.GameTime / 1000);
+            var speedY = distY / (gameMemory.Campaign.GameTime / 1000);
+            var speedZ = distZ / (gameMemory.Campaign.GameTime / 1000);
 
             var speed = (Math.Sqrt(Math.Pow(speedX, 2) + Math.Pow(speedY, 2) + Math.Pow(speedZ, 2)) * 1000);
 
-            _previousXCoordinates = gameMemory.Player.XPosition;
-            _previousYCoordinates = gameMemory.Player.YPosition;
-            _previousZCoordinates = gameMemory.Player.ZPosition;
+            _previousPosition.X = gameMemory.Player.Position.X;
+            _previousPosition.Y = gameMemory.Player.Position.Y;
+            _previousPosition.Z = gameMemory.Player.Position.Z;
 
             _previousSpeedValues.Add(speed);
 
