@@ -55,10 +55,6 @@ namespace SRTPluginUIDR1DirectXOverlay
 
         public PluginConfiguration config;
 
-        private float _previousXCoordinates;
-        private float _previousYCoordinates;
-        private float _previousZCoordinates;
-
         private Vector3 _previousPosition;
 
         private List<double> _previousSpeedValues;
@@ -227,9 +223,8 @@ namespace SRTPluginUIDR1DirectXOverlay
 
                 if (config.Debug)
                 {
+                    parameters.Add("Cutscene", gameMemory.Campaign.CutsceneId.ToString());
                     parameters.Add("Room", gameMemory.Campaign.RoomId.ToString());
-                    parameters.Add("Room From", gameMemory.Campaign.LoadingRoom1Id.ToString());
-                    parameters.Add("Room To", gameMemory.Campaign.LoadingRoom1Id.ToString());
                 }
 
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
@@ -254,10 +249,15 @@ namespace SRTPluginUIDR1DirectXOverlay
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
             }
 
-            if (config.ShowStatusesInfo)
+            if (config.ShowSpeedrunInfo || config.ShowStatusesInfo)
             {
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
-                parameters.Add("Life", string.Format("{0} / {1}", gameMemory.Player.CurrentHealth, gameMemory.Player.MaxHealth));
+
+                if (config.ShowStatusesInfo)
+                {
+                    parameters.Add("Life", string.Format("{0} / {1}", gameMemory.Player.CurrentHealth, gameMemory.Player.MaxHealth));
+                }
+
                 parameters.Add("Stock", (gameMemory.Player.StatusItemStock + 1).ToString());
 
                 if (config.Debug)
@@ -272,7 +272,7 @@ namespace SRTPluginUIDR1DirectXOverlay
                 DrawBlocInfo(ref statsXOffset, ref statsYOffset, parameters);
             }
 
-            if (config.ShowVelocityInfo)
+            if (config.ShowSpeedrunInfo || config.ShowVelocityInfo)
             {
                 ComputeVelocity();
 
@@ -292,13 +292,13 @@ namespace SRTPluginUIDR1DirectXOverlay
             }
 
             // Display the durability info when weapon has no ammo
-            if (config.ShowWeaponInfo && gameMemory.WeaponMaxAmmo == 1 && gameMemory.WeaponMaxDurability > 10)
+            if ((config.ShowSpeedrunInfo || config.ShowWeaponInfo) && gameMemory.WeaponMaxAmmo == 1 && gameMemory.WeaponMaxDurability > 10)
             {
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.WeaponDurability, gameMemory.WeaponMaxDurability, "Item");
             }
 
             // Display the car health only between Case 7.2 (Bomb collector) and Case 8.4 (The Butcher) and when you are in the tunnel
-            if (config.ShowCarHealthInfo && gameMemory.Campaign.RoomId == 1536 && gameMemory.Campaign.CampaignProgress > 340 && gameMemory.Campaign.CampaignProgress < 400)
+            if ((config.ShowSpeedrunInfo || config.ShowCarHealthInfo) && gameMemory.Campaign.RoomId == 1536 && gameMemory.Campaign.CampaignProgress > 340 && gameMemory.Campaign.CampaignProgress < 400)
             {
                 DrawProgressBar(ref statsXOffset, ref statsYOffset, gameMemory.TunnelCarCurrentHealth, gameMemory.TunnelCarMaxHealth, "Car");
             }

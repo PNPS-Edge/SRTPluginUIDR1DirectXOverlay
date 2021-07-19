@@ -9,6 +9,7 @@ namespace SRTPluginUIDR1DirectXOverlay
         public bool Debug { get; set; }
         public float ScalingFactor { get; set; }
 
+        public bool ShowSpeedrunInfo { get; set; }
         public bool ShowCampainInfo { get; set; }
         public bool ShowCoordinatesInfo { get; set; }
         public bool ShowStatusesInfo { get; set; }
@@ -35,13 +36,14 @@ namespace SRTPluginUIDR1DirectXOverlay
             Layout.ElementOffset = 10f;
             Layout.ColumnOffset = 10f;
 
-            ShowCampainInfo = true;
-            ShowCoordinatesInfo = true;
-            ShowStatusesInfo = true;
-            ShowWeaponInfo = true;
-            ShowBossInfo = true;
-            ShowVelocityInfo = true;
-            ShowCarHealthInfo = true;
+            ShowSpeedrunInfo = true;
+            ShowCampainInfo = false;
+            ShowCoordinatesInfo = false;
+            ShowStatusesInfo = false;
+            ShowWeaponInfo = false;
+            ShowBossInfo = false;
+            ShowVelocityInfo = false;
+            ShowCarHealthInfo = false;
 
 
             SpeedAverageFactor = 20;

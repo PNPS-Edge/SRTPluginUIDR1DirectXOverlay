@@ -46,6 +46,9 @@ namespace SRTPluginUIDR1DirectXOverlay.Structs
         /// </summary>
         public float ElementOffset { get; set; }
 
+        /// <summary>
+        /// Gets or sets the column offset betmeen elements
+        /// </summary>
         public float ColumnOffset { get; set; }
     }
 }
